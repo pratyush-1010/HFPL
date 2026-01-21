@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Cricket Scorer</title>
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --secondary: #5f6368;
+            --success: #34a853;
+            --danger: #ea4335;
+            --warning: #fbbc04;
+            --dark: #202124;
+            --noball: #ff5722;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8f9fa;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .tabs {
+            display: flex;
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 20px;
+            background: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: bold;
+            color: var(--secondary);
+            transition: 0.3s;
+        }
+        .tab.active { background: var(--primary); color: white; }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: #fff;
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            box-sizing: border-box;
+        }
+        .hidden { display: none; }
+
+        /* Setup Styles */
+        label { display: block; margin-top: 15px; font-weight: bold; color: var(--secondary); font-size: 14px; }
+        select {
+            width: 100%; padding: 12px; margin: 8px 0;
+            border: 2px solid #eee; border-radius: 8px; font-size: 16px;
+            background-color: #fafafa; outline: none;
+        }
+
+        /* Score Display */
+        .score-box {
+            background: var(--dark);
+            color: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .team-display { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 5px; flex-direction: column; }
+        .logo-large { 
+                width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: white;
+    padding: 2px;
+    object-fit: cover;
+    padding: 0px;
+    border: 5px solid #ffffff;
+        }
+        .runs { font-size: 42px; font-weight: bold; margin: 2px 0; }
+        .overs-text { font-size: 16px; color: #bdc1c6; }
+        .target-info { color: var(--warning); margin-top: 10px; font-weight: bold; border-top: 1px solid #444; padding-top: 8px; font-size: 14px; }
+
+        /* Controls */
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        button {
+            padding: 12px 5px; border: none; border-radius: 8px; cursor: pointer;
+            font-weight: bold; transition: 0.2s; font-size: 14px;
+        }
+        button:active { transform: scale(0.95); }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-run { background: var(--success); color: white; }
+        .btn-wicket { background: var(--danger); color: white; }
+        .btn-extra { background: var(--warning); color: white; }
+        .btn-nb { background: var(--noball); color: white; }
+        .btn-nb.active-nb { outline: 3px solid black; box-shadow: 0 0 10px var(--noball); transform: scale(1.05); }
+        .btn-dot { background: var(--secondary); color: white; }
+        .btn-action { background: var(--primary); color: white; width: 100%; margin-top: 15px; font-size: 16px; padding: 15px; }
+
+        .match-card {
+            background: white; padding: 15px; margin-bottom: 15px;
+            border-radius: 12px; border-left: 6px solid var(--primary);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .history-team { display: flex; align-items: center; gap: 8px; margin: 5px 0; font-weight: 500; }
+        .logo-small { width: 25px; height: 25px; border-radius: 50%; object-fit: cover; background: white; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+
+<div class="tabs">
+    <div class="tab active" id="tabLive" onclick="switchTab('live')">Live Match</div>
+    <div class="tab" id="tabPast" onclick="switchTab('past')">Match History</div>
+</div>
+
+<div id="liveSection" class="container">
+    <div id="setupView">
+    <h2 style="margin-top:0">Match Setup</h2>
+    <label>Batting First</label>
+    <select id="team1Select" onchange="syncTeams()">
+        <option value="" disabled selected>Select Team</option>
+        <option value="VW">Vasha Warriors</option>
+        <option value="TT">Tai Titans</option>
+        <option value="KK">Kisha Knights</option>
+        <option value="SS">Saku Strikers</option>
+    </select>
+
+    <label>Bowling First</label>
+    <select id="team2Select" onchange="syncTeams()">
+        <option value="" disabled selected>Select Team</option>
+        <option value="VW">Vasha Warriors</option>
+        <option value="TT">Tai Titans</option>
+        <option value="KK">Kisha Knights</option>
+        <option value="SS">Saku Strikers</option>
+    </select>
+
+    <label>Match Overs</label>
+    <input type="number" id="maxOversInput" value="5" min="1" max="50" 
+           style="width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #eee; border-radius: 8px; box-sizing: border-box;">
+
+    <button class="btn-action" onclick="startMatch()">Start Match</button>
+</div>
+
+    <div id="scoreView" class="hidden">
+        <div id="inningsTitle" style="font-weight:bold; color:var(--primary); margin-bottom:5px;">1st Innings</div>
+        <div class="score-box">
+            <div class="team-display">
+                <img id="battingLogo" class="logo-large" src="" alt="">
+                <div id="battingTeamName" style="font-size: 18px; color: var(--warning);">Team</div>
+            </div>
+            <div class="runs" id="displayScore">0 / 0</div>
+            <div class="overs-text" id="displayOvers">(0.0 overs)</div>
+            <div class="target-info" id="targetText"></div>
+        </div>
+
+        
+        <div class="grid">
+    <button class="btn-dot" onclick="handleRunInput(0)">Dot</button>
+    <button class="btn-run" onclick="handleRunInput(1)">+1</button>
+    <button class="btn-run" onclick="handleRunInput(2)">+2</button>
+    <button class="btn-run" onclick="handleRunInput(3)">+3</button>
+    <button class="btn-run" onclick="handleRunInput(4)">+4</button>
+    <button class="btn-run" onclick="handleRunInput(6)">+6</button>
+    
+    <button id="wideBtn" class="btn-extra" onclick="addWide()">Wide</button>
+    <button id="nbBtn" class="btn-nb" onclick="toggleNoBall()">No Ball</button>
+    
+    <button class="btn-wicket" style="grid-column: span 2;" onclick="addWicket()">Wicket</button>
+    <button id="undoBtn" class="btn-dot" style="grid-column: span 2; background: #546e7a;" onclick="undoLastAction()">⟲ Undo</button>
+</div>
+        
+        <button class="btn-action" id="mainActionBtn" onclick="nextPhase()">Finish Innings</button>
+    </div>
+</div>
+
+<div id="pastSection" class="container hidden">
+    <h2 style="margin-top:0">Match History</h2>
+    <div id="historyList"></div>
+    <button class="btn-action" style="background:#70757a" onclick="clearHistory()">Clear History</button>
+</div>
+
+<script>
+    const SHEET_API_URL = "https://script.google.com/macros/s/AKfycby018S4K7UEXkUiwTDiSlSlaq_kJBlz3RQ9Ja-yBD2qC-HGwvg8cy8VyVvbsT2S-nSyEg/exec";
+
+    const teamData = {
+        "VW": { name: "Vasha Warriors", logo: "vw.jpeg" },
+        "TT": { name: "Tai Titans", logo: "tt.jpeg" },
+        "KK": { name: "Kisha Knights", logo: "kk.jpeg" },
+        "SS": { name: "Saku Strikers", logo: "ss.jpeg" }
+    };
+
+    let matchData = {
+        team1: "", team2: "",
+        innings: 1, 
+        i1Runs: 0, i1Wickets: 0, i1Balls: 0,
+        i2Runs: 0, i2Wickets: 0, i2Balls: 0,
+        target: null, isFinished: false,
+        maxOvers: 5
+    };
+
+    // This stores snapshots of matchData for undoing
+    let actionStack = [];
+    let isNoBallActive = false;
+
+    // --- UNDO LOGIC ---
+    function saveState() {
+        // Push a deep copy of current matchData into the stack
+        actionStack.push(JSON.parse(JSON.stringify(matchData)));
+        // Limit stack to last 20 actions to save memory
+        if (actionStack.length > 20) actionStack.shift();
+    }
+
+    function undoLastAction() {
+        if (actionStack.length === 0) return alert("Nothing to undo!");
+        
+        // Restore the last state
+        matchData = actionStack.pop();
+        
+        // Reset any temporary UI states
+        isNoBallActive = false;
+        document.getElementById('nbBtn').classList.remove('active-nb');
+        document.getElementById('wideBtn').disabled = false;
+        
+        updateDisplay();
+    }
+
+    // --- SETUP & UI ---
+    function syncTeams() {
+        const t1 = document.getElementById('team1Select');
+        const t2 = document.getElementById('team2Select');
+        Array.from(t2.options).forEach(opt => opt.disabled = (opt.value === t1.value && opt.value !== ""));
+        Array.from(t1.options).forEach(opt => opt.disabled = (opt.value === t2.value && opt.value !== ""));
+    }
+
+    function startMatch() {
+        const val1 = document.getElementById('team1Select').value;
+        const val2 = document.getElementById('team2Select').value;
+        const overs = document.getElementById('maxOversInput').value;
+        
+        if(!val1 || !val2 || !overs) return alert("Please complete the setup.");
+        
+        matchData.team1 = val1;
+        matchData.team2 = val2;
+        matchData.maxOvers = parseInt(overs);
+        
+        document.getElementById('setupView').classList.add('hidden');
+        document.getElementById('scoreView').classList.remove('hidden');
+        actionStack = []; // Clear stack for new match
+        updateDisplay();
+    }
+
+    // --- SCORING LOGIC ---
+    function toggleNoBall() {
+        isNoBallActive = !isNoBallActive;
+        document.getElementById('nbBtn').classList.toggle('active-nb', isNoBallActive);
+        document.getElementById('wideBtn').disabled = isNoBallActive; 
+    }
+
+    function handleRunInput(runsScored) {
+        if(matchData.isFinished) return;
+        saveState(); // Record state before changing it
+
+        let totalToAdd = runsScored + (isNoBallActive ? 1 : 0);
+        
+        if (matchData.innings === 1) matchData.i1Runs += totalToAdd;
+        else matchData.i2Runs += totalToAdd;
+
+        if (!isNoBallActive) addBall();
+        else toggleNoBall();
+
+        updateDisplay();
+        checkInningsEnd();
+    }
+
+    function addWide() {
+        if(matchData.isFinished || isNoBallActive) return;
+        saveState();
+
+        if (matchData.innings === 1) matchData.i1Runs++;
+        else matchData.i2Runs++;
+        updateDisplay();
+        checkInningsEnd();
+    }
+
+    function addWicket() {
+        if(matchData.isFinished) return;
+        saveState();
+
+        if (matchData.innings === 1) matchData.i1Wickets++;
+        else matchData.i2Wickets++;
+        
+        if (isNoBallActive) {
+            if (matchData.innings === 1) matchData.i1Runs += 1;
+            else matchData.i2Runs += 1;
+            toggleNoBall();
+        } else {
+            addBall();
+        }
+
+        updateDisplay();
+        checkInningsEnd();
+    }
+
+    function addBall() {
+        if (matchData.innings === 1) matchData.i1Balls++;
+        else matchData.i2Balls++;
+    }
+
+    function checkInningsEnd() {
+        const maxBalls = matchData.maxOvers * 6;
+        const currentBalls = (matchData.innings === 1) ? matchData.i1Balls : matchData.i2Balls;
+        const currentWickets = (matchData.innings === 1) ? matchData.i1Wickets : matchData.i2Wickets;
+
+        if (matchData.innings === 1 && (currentBalls >= maxBalls || currentWickets >= 10)) {
+            nextPhase();
+        } 
+        else if (matchData.innings === 2) {
+            if (matchData.i2Runs >= matchData.target || currentBalls >= maxBalls || currentWickets >= 10) {
+                finishMatch();
+            }
+        }
+    }
+
+    function updateDisplay() {
+        const isI1 = matchData.innings === 1;
+        const currentID = isI1 ? matchData.team1 : matchData.team2;
+        const r = isI1 ? matchData.i1Runs : matchData.i2Runs;
+        const w = isI1 ? matchData.i1Wickets : matchData.i2Wickets;
+        const b = isI1 ? matchData.i1Balls : matchData.i2Balls;
+        const overs = Math.floor(b / 6) + "." + (b % 6);
+        
+        document.getElementById('inningsTitle').innerText = `${isI1 ? "1st" : "2nd"} Innings (${matchData.maxOvers} Over Match)`;
+        document.getElementById('battingTeamName').innerText = teamData[currentID].name;
+        document.getElementById('battingLogo').src = teamData[currentID].logo;
+        document.getElementById('displayScore').innerText = `${r} / ${w}`;
+        document.getElementById('displayOvers').innerText = `(${overs} / ${matchData.maxOvers} overs)`;
+
+        if (!isI1) {
+            let needed = matchData.target - matchData.i2Runs;
+            document.getElementById('targetText').innerText = needed > 0 ? `Target: ${matchData.target} (Need ${needed} more)` : "Target Achieved!";
+            document.getElementById('mainActionBtn').innerText = "Finish Match";
+        }
+    }
+
+    function nextPhase() {
+        if (matchData.innings === 1) {
+            matchData.target = matchData.i1Runs + 1;
+            matchData.innings = 2;
+            actionStack = []; // Reset undo stack for new innings to prevent cross-innings bugs
+            alert(`Innings Over! ${teamData[matchData.team2].name} needs ${matchData.target} to win.`);
+            updateDisplay();
+        } else {
+            finishMatch();
+        }
+    }
+
+    // --- CLOUD DATA & REDIRECTION ---
+    function finishMatch() {
+        if(matchData.isFinished) return;
+        matchData.isFinished = true;
+
+        let winner = "";
+        if (matchData.i2Runs >= matchData.target) {
+            winner = `${teamData[matchData.team2].name} won by ${10 - matchData.i2Wickets} wickets`;
+        } else if (matchData.i1Runs > matchData.i2Runs) {
+            winner = `${teamData[matchData.team1].name} won by ${matchData.i1Runs - matchData.i2Runs} runs`;
+        } else {
+            winner = "Match Tied!";
+        }
+
+        const finalMatch = {
+            t1: teamData[matchData.team1].name,
+            t2: teamData[matchData.team2].name,
+            s1: `${matchData.i1Runs}/${matchData.i1Wickets} (${Math.floor(matchData.i1Balls/6)}.${matchData.i1Balls%6})`,
+            s2: `${matchData.i2Runs}/${matchData.i2Wickets} (${Math.floor(matchData.i2Balls/6)}.${matchData.i2Balls%6})`,
+            result: winner,
+            date: new Date().toLocaleString()
+        };
+
+        document.getElementById('mainActionBtn').innerText = "Uploading to history...";
+        document.getElementById('mainActionBtn').disabled = true;
+
+        fetch(SHEET_API_URL, {
+            method: "POST",
+            mode: "no-cors", 
+            cache: "no-cache",
+            body: JSON.stringify(finalMatch)
+        }).then(() => {
+            alert("Match Finished! " + winner);
+            resetMatchState();
+            switchTab('past'); 
+        }).catch(err => {
+            console.error(err);
+            alert("Sync failed. Check history.");
+            switchTab('past');
+        });
+    }
+
+    function resetMatchState() {
+        matchData = {
+            team1: "", team2: "", innings: 1, 
+            i1Runs: 0, i1Wickets: 0, i1Balls: 0,
+            i2Runs: 0, i2Wickets: 0, i2Balls: 0,
+            target: null, isFinished: false, maxOvers: 5
+        };
+        actionStack = [];
+        document.getElementById('setupView').classList.remove('hidden');
+        document.getElementById('scoreView').classList.add('hidden');
+        document.getElementById('mainActionBtn').disabled = false;
+        document.getElementById('mainActionBtn').innerText = "Finish Innings";
+        document.getElementById('targetText').innerText = "";
+    }
+
+    async function loadHistory() {
+        const list = document.getElementById('historyList');
+        list.innerHTML = "<p style='text-align:center;'>Loading match history...</p>";
+        
+        try {
+            const response = await fetch(SHEET_API_URL);
+            const data = await response.json();
+            
+            list.innerHTML = "";
+            if(!data || data.length === 0) {
+                list.innerHTML = "<p style='text-align:center; color:gray;'>No records found.</p>";
+                return;
+            }
+
+            data.reverse().forEach(row => {
+                list.innerHTML += `
+                    <div class="match-card">
+                        <small style="color:gray">${row[0]}</small><br>
+                        <strong>${row[1]} vs ${row[2]}</strong>
+                        <div class="history-team">${row[1]}: ${row[3]}</div>
+                        <div class="history-team">${row[2]}: ${row[4]}</div>
+                        <span class="winner-tag">🏆 ${row[5]}</span>
+                    </div>`;
+            });
+        } catch (err) {
+            list.innerHTML = "<p style='text-align:center; color:red;'>Sync Error.</p>";
+        }
+    }
+
+    function switchTab(tab) {
+        document.getElementById('tabLive').classList.toggle('active', tab === 'live');
+        document.getElementById('tabPast').classList.toggle('active', tab === 'past');
+        document.getElementById('liveSection').classList.toggle('hidden', tab !== 'live');
+        document.getElementById('pastSection').classList.toggle('hidden', tab !== 'past');
+        if(tab === 'past') loadHistory();
+    }
+
+    async function clearHistory() { 
+    if(confirm("Are you sure you want to permanently delete ALL match history from the cloud?")) {
+        const list = document.getElementById('historyList');
+        list.innerHTML = "<p style='text-align:center;'>Clearing match history...</p>";
+
+        try {
+            // We call the script with a special parameter: ?action=clear
+            const response = await fetch(`${SHEET_API_URL}?action=clear`);
+            const result = await response.json();
+            
+            if(result.result === 'cleared') {
+                alert("History cleared successfully!");
+                loadHistory(); // Refresh the list
+            }
+        } catch (err) {
+            alert("Error clearing history. Make sure you re-deployed your Google Script.");
+            loadHistory();
+        }
+    }
+}
+</script>
+
+</body>
+</html>
