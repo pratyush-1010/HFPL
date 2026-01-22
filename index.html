@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Professional Cricket Scorer</title>
     <style>
         :root {
@@ -75,21 +75,22 @@
         }
         .team-display { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 5px; flex-direction: column; }
         .logo-large { 
-                width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    background: white;
-    padding: 2px;
-    object-fit: cover;
-    padding: 0px;
-    border: 5px solid #ffffff;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: white;
+            padding: 2px;
+            object-fit: cover;
+            padding: 0px;
+            border: 5px solid #ffffff;
         }
         .runs { font-size: 42px; font-weight: bold; margin: 2px 0; }
         .overs-text { font-size: 16px; color: #bdc1c6; }
         .target-info { color: var(--warning); margin-top: 10px; font-weight: bold; border-top: 1px solid #444; padding-top: 8px; font-size: 14px; }
 
         /* Controls */
-        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top:10px; }
+        .sub-controls { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
         button {
             padding: 12px 5px; border: none; border-radius: 8px; cursor: pointer;
             font-weight: bold; transition: 0.2s; font-size: 14px;
@@ -111,6 +112,12 @@
         }
         .history-team { display: flex; align-items: center; gap: 8px; margin: 5px 0; font-weight: 500; }
         .logo-small { width: 25px; height: 25px; border-radius: 50%; object-fit: cover; background: white; border: 1px solid #ddd; }
+
+        /* Best players list */
+        .best-block { display:flex; gap:12px; margin-top: 12px; flex-direction: column; }
+        .best-list { background:#fff; padding:10px; border-radius:10px; border:1px solid #eee; }
+        .best-item { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed #f0f0f0; }
+        .best-item:last-child { border-bottom: none; }
     </style>
 </head>
 <body>
@@ -155,9 +162,25 @@
                 <img id="battingLogo" class="logo-large" src="" alt="">
                 <div id="battingTeamName" style="font-size: 18px; color: var(--warning);">Team</div>
             </div>
+            <div style="display:flex; gap:10px; justify-content:center; align-items:center; margin-bottom:8px; flex-wrap:wrap;">
+                <div>
+                    <label style="color:#fff; font-weight:600; font-size:12px;">Striker</label>
+                    <select id="strikerSelect" style="padding:8px; border-radius:8px;"></select>
+                </div>
+                <div>
+                    <label style="color:#fff; font-weight:600; font-size:12px;">Non-Striker</label>
+                    <select id="nonStrikerSelect" style="padding:8px; border-radius:8px;"></select>
+                </div>
+                <div>
+                    <label style="color:#fff; font-weight:600; font-size:12px;">Bowler</label>
+                    <select id="bowlerSelect" style="padding:8px; border-radius:8px;"></select>
+                </div>
+            </div>
+
             <div class="runs" id="displayScore">0 / 0</div>
             <div class="overs-text" id="displayOvers">(0.0 overs)</div>
             <div class="target-info" id="targetText"></div>
+            <div style="color:#fff; margin-top:6px; font-size:13px;" id="freeHitText"></div>
         </div>
 
         
@@ -170,11 +193,21 @@
     <button class="btn-run" onclick="handleRunInput(6)">+6</button>
     
     <button id="wideBtn" class="btn-extra" onclick="addWide()">Wide</button>
-    <button id="nbBtn" class="btn-nb" onclick="toggleNoBall()">No Ball</button>
+    <button id="nbBtn" class="btn-nb" onclick="addNoBall()">No Ball</button>
     
     <button class="btn-wicket" style="grid-column: span 2;" onclick="addWicket()">Wicket</button>
     <button id="undoBtn" class="btn-dot" style="grid-column: span 2; background: #546e7a;" onclick="undoLastAction()">⟲ Undo</button>
 </div>
+
+        <div class="sub-controls">
+            <button class="btn-extra" onclick="addBye()">Bye</button>
+            <button class="btn-extra" onclick="addLegBye()">Leg Bye</button>
+            <button class="btn-dot" onclick="swapStrike()">Swap Strike</button>
+            <div style="flex:1;"></div>
+            <div style="font-size:13px; color:var(--secondary); align-self:center;">
+                Overs per innings: <span id="maxOversDisplay">5</span>
+            </div>
+        </div>
         
         <button class="btn-action" id="mainActionBtn" onclick="nextPhase()">Finish Innings</button>
     </div>
@@ -183,55 +216,101 @@
 <div id="pastSection" class="container hidden">
     <h2 style="margin-top:0">Match History</h2>
     <div id="historyList"></div>
+
+    <!-- Best players block: added here -->
+    <div id="bestPlayers" class="best-block"></div>
+
     <button class="btn-action" style="background:#70757a" onclick="clearHistory()">Clear History</button>
 </div>
 
 <script>
-    const SHEET_API_URL = "https://script.google.com/macros/s/AKfycby018S4K7UEXkUiwTDiSlSlaq_kJBlz3RQ9Ja-yBD2qC-HGwvg8cy8VyVvbsT2S-nSyEg/exec";
+    // Replace with your deployed Apps Script Web App URL
+    const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbyIJYvYHwMdq2Azvhv82ad3Dw-1cBxj9tNr4ws7rOj-SVi_gK0Z3Na7bST13RzTj2k-sA/exec";
 
-    const teamData = {
-        "VW": { name: "Vasha Warriors", logo: "vw.jpeg" },
-        "TT": { name: "Tai Titans", logo: "tt.jpeg" },
-        "KK": { name: "Kisha Knights", logo: "kk.jpeg" },
-        "SS": { name: "Saku Strikers", logo: "ss.jpeg" }
+    const teamPlayers = {
+        "VW": {
+            name: "Vasha Warriors",
+            logo: "vw.jpeg",
+            players: [
+                "Sudesh S.(c)","Ashok B.","Sanjana B.","Vidhi B.","Neha C.",
+                "Tejas C.","Parth S.","Aryan P.","Rutuja B.","Amit", "Vandu C."
+            ]
+        },
+        "TT": {
+            name: "Tai Titans",
+            logo: "tt.jpeg",
+            players: [
+                "Vaibhav P.(c)","Vijay B.","Jitendra P.","Riya P.","Anjali S.",
+                "Gayatri S.","Prashant K.","Raj D.","Rasika P."
+            ]
+        },
+        "KK": {
+            name: "Kisha Knights",
+            logo: "kk.jpeg",
+            players: [
+                "Sanjay B.(c)","Rajesh P.","Shri S.","Usha P.","Pradnya C.",
+                "Bhakti B.","Ayush P.","Sam B.","Shubham C."
+            ]
+        },
+        "SS": {
+            name: "Saku Strikers",
+            logo: "ss.jpeg",
+            players: [
+                "Rakesh P.(c)","Sagar C.","Sarita S.","Anuja B.","Tanvi B.",
+                "Aarohi P.","Aashay B.","Smit C.","Pratyush B."
+            ]
+        }
     };
 
     let matchData = {
         team1: "", team2: "",
-        innings: 1, 
+        innings: 1,
         i1Runs: 0, i1Wickets: 0, i1Balls: 0,
         i2Runs: 0, i2Wickets: 0, i2Balls: 0,
         target: null, isFinished: false,
         maxOvers: 5
     };
 
-    // This stores snapshots of matchData for undoing
+    let inMatchPlayerStats = {};
+    let battingLineup = [];
+    let nextBatsmanIndex = 2;
+    let currentStriker = "";
+    let currentNonStriker = "";
+    let currentBowler = "";
     let actionStack = [];
-    let isNoBallActive = false;
+    let freeHit = false;
 
-    // --- UNDO LOGIC ---
     function saveState() {
-        // Push a deep copy of current matchData into the stack
-        actionStack.push(JSON.parse(JSON.stringify(matchData)));
-        // Limit stack to last 20 actions to save memory
-        if (actionStack.length > 20) actionStack.shift();
+        const snapshot = {
+            matchData: JSON.parse(JSON.stringify(matchData)),
+            inMatchPlayerStats: JSON.parse(JSON.stringify(inMatchPlayerStats)),
+            battingLineup: battingLineup.slice(),
+            nextBatsmanIndex,
+            currentStriker,
+            currentNonStriker,
+            currentBowler,
+            freeHit
+        };
+        actionStack.push(snapshot);
+        if (actionStack.length > 50) actionStack.shift();
     }
 
     function undoLastAction() {
         if (actionStack.length === 0) return alert("Nothing to undo!");
-        
-        // Restore the last state
-        matchData = actionStack.pop();
-        
-        // Reset any temporary UI states
-        isNoBallActive = false;
-        document.getElementById('nbBtn').classList.remove('active-nb');
-        document.getElementById('wideBtn').disabled = false;
-        
+        const s = actionStack.pop();
+        matchData = s.matchData;
+        inMatchPlayerStats = s.inMatchPlayerStats;
+        battingLineup = s.battingLineup;
+        nextBatsmanIndex = s.nextBatsmanIndex;
+        currentStriker = s.currentStriker;
+        currentNonStriker = s.currentNonStriker;
+        currentBowler = s.currentBowler;
+        freeHit = s.freeHit;
+        populatePlayerSelectors();
         updateDisplay();
+        document.getElementById('nbBtn').classList.toggle('active-nb', freeHit);
     }
 
-    // --- SETUP & UI ---
     function syncTeams() {
         const t1 = document.getElementById('team1Select');
         const t2 = document.getElementById('team2Select');
@@ -242,75 +321,293 @@
     function startMatch() {
         const val1 = document.getElementById('team1Select').value;
         const val2 = document.getElementById('team2Select').value;
-        const overs = document.getElementById('maxOversInput').value;
-        
-        if(!val1 || !val2 || !overs) return alert("Please complete the setup.");
-        
+        const overs = Number(document.getElementById('maxOversInput').value);
+
+        if (!val1 || !val2 || !overs) return alert("Please complete the setup.");
+
         matchData.team1 = val1;
         matchData.team2 = val2;
-        matchData.maxOvers = parseInt(overs);
-        
+        matchData.maxOvers = overs;
+        document.getElementById('maxOversDisplay').innerText = overs;
+
+        battingLineup = teamPlayers[val1].players.slice();
+        nextBatsmanIndex = 2;
+        currentStriker = battingLineup[0];
+        currentNonStriker = battingLineup[1];
+        currentBowler = teamPlayers[val2].players[0];
+
+        inMatchPlayerStats = {};
+        Object.keys(teamPlayers).forEach(tk => {
+            teamPlayers[tk].players.forEach(p => {
+                inMatchPlayerStats[p] = {
+                    name: p,
+                    team: teamPlayers[tk].name,
+                    runs: 0,
+                    balls: 0,
+                    fours: 0,
+                    sixes: 0,
+                    dots: 0,
+                    wickets: 0,
+                    ballsBowled: 0,
+                    runsConceded: 0,
+                    wides: 0,
+                    noBalls: 0,
+                    matches: 0,
+                    out: false
+                };
+            });
+        });
+
         document.getElementById('setupView').classList.add('hidden');
         document.getElementById('scoreView').classList.remove('hidden');
-        actionStack = []; // Clear stack for new match
+        actionStack = [];
+        freeHit = false;
+        populatePlayerSelectors();
         updateDisplay();
     }
 
-    // --- SCORING LOGIC ---
-    function toggleNoBall() {
-        isNoBallActive = !isNoBallActive;
-        document.getElementById('nbBtn').classList.toggle('active-nb', isNoBallActive);
-        document.getElementById('wideBtn').disabled = isNoBallActive; 
+    function populatePlayerSelectors() {
+        const strikerSel = document.getElementById('strikerSelect');
+        const nonSel = document.getElementById('nonStrikerSelect');
+        const bowlerSel = document.getElementById('bowlerSelect');
+
+        strikerSel.innerHTML = "";
+        nonSel.innerHTML = "";
+        bowlerSel.innerHTML = "";
+
+        const battingTeamKey = (matchData.innings === 1) ? matchData.team1 : matchData.team2;
+        const bowlingTeamKey = (matchData.innings === 1) ? matchData.team2 : matchData.team1;
+        const batList = battingLineup.slice();
+        const bowlList = teamPlayers[bowlingTeamKey].players.slice();
+
+        batList.forEach(p => {
+            const o1 = document.createElement('option');
+            o1.value = p; o1.text = p;
+            if (inMatchPlayerStats[p] && inMatchPlayerStats[p].out) o1.disabled = true;
+            strikerSel.appendChild(o1);
+
+            const o2 = document.createElement('option');
+            o2.value = p; o2.text = p;
+            if (inMatchPlayerStats[p] && inMatchPlayerStats[p].out) o2.disabled = true;
+            nonSel.appendChild(o2);
+        });
+
+        bowlList.forEach(p => {
+            const o = document.createElement('option');
+            o.value = p; o.text = p;
+            bowlerSel.appendChild(o);
+        });
+
+        if (!currentStriker || (inMatchPlayerStats[currentStriker] && inMatchPlayerStats[currentStriker].out)) {
+            const available = batList.find(x => !inMatchPlayerStats[x].out);
+            currentStriker = available || "";
+        }
+        if (!currentNonStriker || (inMatchPlayerStats[currentNonStriker] && inMatchPlayerStats[currentNonStriker].out) || currentNonStriker === currentStriker) {
+            const available = batList.find(x => !inMatchPlayerStats[x].out && x !== currentStriker);
+            currentNonStriker = available || "";
+        }
+
+        if (currentStriker) strikerSel.value = currentStriker;
+        if (currentNonStriker) nonSel.value = currentNonStriker;
+        if (currentBowler) bowlerSel.value = currentBowler;
+
+        strikerSel.onchange = () => {
+            const val = strikerSel.value;
+            if (inMatchPlayerStats[val] && inMatchPlayerStats[val].out) {
+                alert("This player is out and cannot bat.");
+                strikerSel.value = currentStriker;
+                return;
+            }
+            if (val === currentNonStriker) {
+                alert("Striker and Non-Striker cannot be the same player.");
+                strikerSel.value = currentStriker;
+                return;
+            }
+            currentStriker = val;
+            updateDisplay();
+        };
+        nonSel.onchange = () => {
+            const val = nonSel.value;
+            if (inMatchPlayerStats[val] && inMatchPlayerStats[val].out) {
+                alert("This player is out and cannot bat.");
+                nonSel.value = currentNonStriker;
+                return;
+            }
+            if (val === currentStriker) {
+                alert("Striker and Non-Striker cannot be the same player.");
+                nonSel.value = currentNonStriker;
+                return;
+            }
+            currentNonStriker = val;
+            updateDisplay();
+        };
+        bowlerSel.onchange = () => { currentBowler = bowlerSel.value; updateDisplay(); };
+    }
+
+    function swapStrike() {
+        [currentStriker, currentNonStriker] = [currentNonStriker, currentStriker];
+        populatePlayerSelectors();
+        updateDisplay();
+    }
+
+    function addLegalDeliveryBallToBowler() {
+        if (!currentBowler) return;
+        inMatchPlayerStats[currentBowler].ballsBowled += 1;
+    }
+    function addRunsToBowler(runs) {
+        if (!currentBowler) return;
+        inMatchPlayerStats[currentBowler].runsConceded += runs;
     }
 
     function handleRunInput(runsScored) {
-        if(matchData.isFinished) return;
-        saveState(); // Record state before changing it
-
-        let totalToAdd = runsScored + (isNoBallActive ? 1 : 0);
-        
-        if (matchData.innings === 1) matchData.i1Runs += totalToAdd;
-        else matchData.i2Runs += totalToAdd;
-
-        if (!isNoBallActive) addBall();
-        else toggleNoBall();
-
-        updateDisplay();
-        checkInningsEnd();
-    }
-
-    function addWide() {
-        if(matchData.isFinished || isNoBallActive) return;
+        if (matchData.isFinished) return;
         saveState();
 
-        if (matchData.innings === 1) matchData.i1Runs++;
-        else matchData.i2Runs++;
-        updateDisplay();
-        checkInningsEnd();
-    }
+        const isI1 = matchData.innings === 1;
 
-    function addWicket() {
-        if(matchData.isFinished) return;
-        saveState();
+        if (isI1) matchData.i1Runs += runsScored;
+        else matchData.i2Runs += runsScored;
 
-        if (matchData.innings === 1) matchData.i1Wickets++;
-        else matchData.i2Wickets++;
-        
-        if (isNoBallActive) {
-            if (matchData.innings === 1) matchData.i1Runs += 1;
-            else matchData.i2Runs += 1;
-            toggleNoBall();
-        } else {
-            addBall();
+        // legal delivery (including the legal delivery after a no-ball freeHit)
+        if (isI1) matchData.i1Balls++;
+        else matchData.i2Balls++;
+        addLegalDeliveryBallToBowler();
+        inMatchPlayerStats[currentStriker].balls += 1;
+        if (runsScored === 0) inMatchPlayerStats[currentStriker].dots += 1;
+
+        // freeHit consumed (if it was active)
+        if (freeHit) {
+            freeHit = false;
+            document.getElementById('freeHitText').innerText = "";
+            document.getElementById('nbBtn').classList.remove('active-nb');
+        }
+
+        inMatchPlayerStats[currentStriker].runs += runsScored;
+        if (runsScored === 4) inMatchPlayerStats[currentStriker].fours += 1;
+        if (runsScored === 6) inMatchPlayerStats[currentStriker].sixes += 1;
+
+        addRunsToBowler(runsScored);
+
+        if (runsScored % 2 === 1) {
+            [currentStriker, currentNonStriker] = [currentNonStriker, currentStriker];
         }
 
         updateDisplay();
         checkInningsEnd();
     }
 
-    function addBall() {
-        if (matchData.innings === 1) matchData.i1Balls++;
+    function addWide() {
+        if (matchData.isFinished) return;
+        saveState();
+
+        const isI1 = matchData.innings === 1;
+        if (isI1) matchData.i1Runs += 1;
+        else matchData.i2Runs += 1;
+
+        inMatchPlayerStats[currentBowler].wides += 1;
+        inMatchPlayerStats[currentBowler].runsConceded += 1;
+
+        // wides do not count as legal ball
+        updateDisplay();
+        checkInningsEnd();
+    }
+
+    function addNoBall() {
+        if (matchData.isFinished) return;
+        saveState();
+
+        const isI1 = matchData.innings === 1;
+        if (isI1) matchData.i1Runs += 1;
+        else matchData.i2Runs += 1;
+
+        inMatchPlayerStats[currentBowler].noBalls += 1;
+        inMatchPlayerStats[currentBowler].runsConceded += 1;
+
+        freeHit = true;
+        document.getElementById('freeHitText').innerText = "Free Hit: next legal delivery (wicket not counted except run-out)";
+        document.getElementById('nbBtn').classList.add('active-nb');
+
+        updateDisplay();
+    }
+
+    function addBye() {
+        if (matchData.isFinished) return;
+        saveState();
+        const isI1 = matchData.innings === 1;
+        if (isI1) matchData.i1Runs += 1;
+        else matchData.i2Runs += 1;
+
+        if (isI1) matchData.i1Balls++;
         else matchData.i2Balls++;
+        addLegalDeliveryBallToBowler();
+        addRunsToBowler(1);
+
+        [currentStriker, currentNonStriker] = [currentNonStriker, currentStriker];
+
+        updateDisplay();
+        checkInningsEnd();
+    }
+
+    function addLegBye() {
+        if (matchData.isFinished) return;
+        saveState();
+        const isI1 = matchData.innings === 1;
+        if (isI1) matchData.i1Runs += 1;
+        else matchData.i2Runs += 1;
+
+        if (isI1) matchData.i1Balls++;
+        else matchData.i2Balls++;
+        addLegalDeliveryBallToBowler();
+        addRunsToBowler(1);
+
+        [currentStriker, currentNonStriker] = [currentNonStriker, currentStriker];
+
+        updateDisplay();
+        checkInningsEnd();
+    }
+
+    function getNextBatsmanName() {
+        while (nextBatsmanIndex < battingLineup.length) {
+            const cand = battingLineup[nextBatsmanIndex++];
+            if (!inMatchPlayerStats[cand].out && cand !== currentStriker && cand !== currentNonStriker) {
+                return cand;
+            }
+        }
+        return null;
+    }
+
+    function addWicket() {
+        if (matchData.isFinished) return;
+        if (freeHit) return alert("Free Hit active — wicket (except run-out) not valid. For run-out, use swap+Wicket flow.");
+
+        saveState();
+
+        const isI1 = matchData.innings === 1;
+        if (isI1) {
+            matchData.i1Wickets++;
+            matchData.i1Balls++;
+        } else {
+            matchData.i2Wickets++;
+            matchData.i2Balls++;
+        }
+
+        if (currentBowler) {
+            inMatchPlayerStats[currentBowler].wickets += 1;
+            inMatchPlayerStats[currentBowler].ballsBowled += 1;
+        }
+
+        if (currentStriker) {
+            inMatchPlayerStats[currentStriker].out = true;
+        }
+
+        const newBatsman = getNextBatsmanName();
+        if (newBatsman) {
+            currentStriker = newBatsman;
+        }
+
+        populatePlayerSelectors();
+        updateDisplay();
+        checkInningsEnd();
     }
 
     function checkInningsEnd() {
@@ -320,131 +617,265 @@
 
         if (matchData.innings === 1 && (currentBalls >= maxBalls || currentWickets >= 10)) {
             nextPhase();
-        } 
-        else if (matchData.innings === 2) {
+            return;
+        }
+
+        if (matchData.innings === 2) {
             if (matchData.i2Runs >= matchData.target || currentBalls >= maxBalls || currentWickets >= 10) {
                 finishMatch();
+                return;
             }
+        }
+
+        const ballsThisInnings = currentBalls;
+        if (ballsThisInnings > 0 && ballsThisInnings % 6 === 0) {
+            [currentStriker, currentNonStriker] = [currentNonStriker, currentStriker];
+            populatePlayerSelectors();
         }
     }
 
     function updateDisplay() {
         const isI1 = matchData.innings === 1;
         const currentID = isI1 ? matchData.team1 : matchData.team2;
+        const currentBatTeamName = teamPlayers[currentID] ? teamPlayers[currentID].name : "";
         const r = isI1 ? matchData.i1Runs : matchData.i2Runs;
         const w = isI1 ? matchData.i1Wickets : matchData.i2Wickets;
         const b = isI1 ? matchData.i1Balls : matchData.i2Balls;
         const overs = Math.floor(b / 6) + "." + (b % 6);
-        
+
         document.getElementById('inningsTitle').innerText = `${isI1 ? "1st" : "2nd"} Innings (${matchData.maxOvers} Over Match)`;
-        document.getElementById('battingTeamName').innerText = teamData[currentID].name;
-        document.getElementById('battingLogo').src = teamData[currentID].logo;
+        document.getElementById('battingTeamName').innerText = currentBatTeamName;
+        document.getElementById('battingLogo').src = (teamPlayers[currentID] && teamPlayers[currentID].logo) ? teamPlayers[currentID].logo : "";
         document.getElementById('displayScore').innerText = `${r} / ${w}`;
         document.getElementById('displayOvers').innerText = `(${overs} / ${matchData.maxOvers} overs)`;
+        document.getElementById('maxOversDisplay').innerText = matchData.maxOvers;
+
+        populatePlayerSelectors();
 
         if (!isI1) {
             let needed = matchData.target - matchData.i2Runs;
             document.getElementById('targetText').innerText = needed > 0 ? `Target: ${matchData.target} (Need ${needed} more)` : "Target Achieved!";
             document.getElementById('mainActionBtn').innerText = "Finish Match";
+        } else {
+            document.getElementById('targetText').innerText = "";
+            document.getElementById('mainActionBtn').innerText = "Finish Innings";
         }
+
+        document.getElementById('freeHitText').innerText = freeHit ? "Free Hit active (next legal ball)" : "";
     }
 
     function nextPhase() {
         if (matchData.innings === 1) {
             matchData.target = matchData.i1Runs + 1;
             matchData.innings = 2;
-            actionStack = []; // Reset undo stack for new innings to prevent cross-innings bugs
-            alert(`Innings Over! ${teamData[matchData.team2].name} needs ${matchData.target} to win.`);
+            battingLineup = teamPlayers[matchData.team2].players.slice();
+            nextBatsmanIndex = 2;
+            currentStriker = battingLineup[0];
+            currentNonStriker = battingLineup[1];
+            currentBowler = teamPlayers[matchData.team1].players[0];
+            actionStack = [];
+            freeHit = false;
+            alert(`Innings Over! ${teamPlayers[matchData.team2].name} needs ${matchData.target} to win.`);
+            populatePlayerSelectors();
             updateDisplay();
         } else {
             finishMatch();
         }
     }
 
-    // --- CLOUD DATA & REDIRECTION ---
     function finishMatch() {
-        if(matchData.isFinished) return;
+        if (matchData.isFinished) return;
         matchData.isFinished = true;
 
         let winner = "";
         if (matchData.i2Runs >= matchData.target) {
-            winner = `${teamData[matchData.team2].name} won by ${10 - matchData.i2Wickets} wickets`;
+            winner = `${teamPlayers[matchData.team2].name} won by ${10 - matchData.i2Wickets} wickets`;
         } else if (matchData.i1Runs > matchData.i2Runs) {
-            winner = `${teamData[matchData.team1].name} won by ${matchData.i1Runs - matchData.i2Runs} runs`;
+            winner = `${teamPlayers[matchData.team1].name} won by ${matchData.i1Runs - matchData.i2Runs} runs`;
         } else {
             winner = "Match Tied!";
         }
 
+        const playerStatsPayload = {};
+        Object.keys(inMatchPlayerStats).forEach(pname => {
+            const s = inMatchPlayerStats[pname];
+            const played = (s.runs || s.balls || s.ballsBowled || s.wickets || s.wides || s.noBalls || s.out);
+            if (played) {
+                playerStatsPayload[pname] = {
+                    team: s.team,
+                    runs: s.runs || 0,
+                    balls: s.balls || 0,
+                    fours: s.fours || 0,
+                    sixes: s.sixes || 0,
+                    wickets: s.wickets || 0,
+                    ballsBowled: s.ballsBowled || 0,
+                    runsConceded: s.runsConceded || 0,
+                    wides: s.wides || 0,
+                    noBalls: s.noBalls || 0
+                };
+            }
+        });
+
         const finalMatch = {
-            t1: teamData[matchData.team1].name,
-            t2: teamData[matchData.team2].name,
+            date: new Date().toLocaleString(),
+            t1: teamPlayers[matchData.team1].name,
+            t2: teamPlayers[matchData.team2].name,
             s1: `${matchData.i1Runs}/${matchData.i1Wickets} (${Math.floor(matchData.i1Balls/6)}.${matchData.i1Balls%6})`,
             s2: `${matchData.i2Runs}/${matchData.i2Wickets} (${Math.floor(matchData.i2Balls/6)}.${matchData.i2Balls%6})`,
             result: winner,
-            date: new Date().toLocaleString()
+            playerStats: playerStatsPayload
         };
 
         document.getElementById('mainActionBtn').innerText = "Uploading to history...";
         document.getElementById('mainActionBtn').disabled = true;
 
+        // still using no-cors for wide compatibility; server will receive data.
         fetch(SHEET_API_URL, {
             method: "POST",
-            mode: "no-cors", 
+            mode: "no-cors",
             cache: "no-cache",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(finalMatch)
         }).then(() => {
             alert("Match Finished! " + winner);
             resetMatchState();
-            switchTab('past'); 
+            switchTab('past');
         }).catch(err => {
             console.error(err);
-            alert("Sync failed. Check history.");
+            alert("Sync failed. Check history and deployment.");
             switchTab('past');
         });
     }
 
     function resetMatchState() {
         matchData = {
-            team1: "", team2: "", innings: 1, 
+            team1: "", team2: "", innings: 1,
             i1Runs: 0, i1Wickets: 0, i1Balls: 0,
             i2Runs: 0, i2Wickets: 0, i2Balls: 0,
             target: null, isFinished: false, maxOvers: 5
         };
+        inMatchPlayerStats = {};
+        battingLineup = [];
+        nextBatsmanIndex = 2;
+        currentStriker = "";
+        currentNonStriker = "";
+        currentBowler = "";
         actionStack = [];
+        freeHit = false;
         document.getElementById('setupView').classList.remove('hidden');
         document.getElementById('scoreView').classList.add('hidden');
         document.getElementById('mainActionBtn').disabled = false;
         document.getElementById('mainActionBtn').innerText = "Finish Innings";
         document.getElementById('targetText').innerText = "";
+        document.getElementById('freeHitText').innerText = "";
+        document.getElementById('nbBtn').classList.remove('active-nb');
     }
 
+    // HISTORY: assume server returns only data rows (no header). Render directly.
     async function loadHistory() {
         const list = document.getElementById('historyList');
+        const bestBlock = document.getElementById('bestPlayers');
         list.innerHTML = "<p style='text-align:center;'>Loading match history...</p>";
-        
+        bestBlock.innerHTML = "<p style='text-align:center; color:gray;'>Loading best players...</p>";
+
         try {
             const response = await fetch(SHEET_API_URL);
             const data = await response.json();
-            
+
             list.innerHTML = "";
-            if(!data || data.length === 0) {
+
+            if (!data || data.length === 0) {
                 list.innerHTML = "<p style='text-align:center; color:gray;'>No records found.</p>";
-                return;
+            } else {
+                // 'data' is expected to be an array of match rows (already excluding header)
+                data.reverse().forEach(row => {
+                    if (!row || row.length < 6) return;
+                    list.innerHTML += `
+                        <div class="match-card">
+                            <small style="color:gray">${row[0]}</small><br>
+                            <strong>${row[1]} vs ${row[2]}</strong>
+                            <div class="history-team">${row[1]}: ${row[3]}</div>
+                            <div class="history-team">${row[2]}: ${row[4]}</div>
+                            <span class="winner-tag">🏆 ${row[5]}</span>
+                        </div>`;
+                });
             }
 
-            data.reverse().forEach(row => {
-                list.innerHTML += `
-                    <div class="match-card">
-                        <small style="color:gray">${row[0]}</small><br>
-                        <strong>${row[1]} vs ${row[2]}</strong>
-                        <div class="history-team">${row[1]}: ${row[3]}</div>
-                        <div class="history-team">${row[2]}: ${row[4]}</div>
-                        <span class="winner-tag">🏆 ${row[5]}</span>
-                    </div>`;
-            });
+            const pResp = await fetch(`${SHEET_API_URL}?action=players`);
+            const pData = await pResp.json();
+            renderBestPlayers(pData, bestBlock);
         } catch (err) {
+            console.error(err);
             list.innerHTML = "<p style='text-align:center; color:red;'>Sync Error.</p>";
+            bestBlock.innerHTML = "<p style='text-align:center; color:red;'>Could not load best players.</p>";
         }
+    }
+
+    // renderBestPlayers: server returns players data rows (no header). Use rows directly.
+    function renderBestPlayers(pData, container) {
+        container.innerHTML = "";
+        if (!pData || pData.length === 0) {
+            container.innerHTML = "<div class='best-list'><strong>No player stats available.</strong></div>";
+            return;
+        }
+
+        // pData is array of rows (each row: Name, Team, Runs, Balls, Fours, Sixes, Wickets, BallsBowled, RunsConceded, NoBalls, Wides, Matches)
+        const rows = pData.filter(r => r && r[0]);
+        const players = rows.map(r => {
+            return {
+                name: String(r[0] || "").trim(),
+                team: String(r[1] || "").trim(),
+                runs: Number(r[2] || 0),
+                balls: Number(r[3] || 0),
+                fours: Number(r[4] || 0),
+                sixes: Number(r[5] || 0),
+                wickets: Number(r[6] || 0),
+                ballsBowled: Number(r[7] || 0),
+                runsConceded: Number(r[8] || 0),
+                noBalls: Number(r[9] || 0),
+                wides: Number(r[10] || 0),
+                matches: Number(r[11] || 0)
+            };
+        });
+
+        if (players.length === 0) {
+            container.innerHTML = "<div class='best-list'><strong>No player stats available.</strong></div>";
+            return;
+        }
+
+        const topBatsmen = players.slice().sort((a,b) => {
+            if (b.runs !== a.runs) return b.runs - a.runs;
+            const srA = a.balls > 0 ? (a.runs / a.balls) * 100 : 0;
+            const srB = b.balls > 0 ? (b.runs / b.balls) * 100 : 0;
+            return srB - srA;
+        }).slice(0, 5);
+
+        const topBowlers = players.slice().sort((a,b) => {
+            if (b.wickets !== a.wickets) return b.wickets - a.wickets;
+            const ecoA = a.ballsBowled > 0 ? (a.runsConceded / (a.ballsBowled/6)) : Infinity;
+            const ecoB = b.ballsBowled > 0 ? (b.runsConceded / (b.ballsBowled/6)) : Infinity;
+            if (ecoA !== ecoB) return ecoA - ecoB;
+            const wkpmA = a.matches > 0 ? (a.wickets / a.matches) : 0;
+            const wkpmB = b.matches > 0 ? (b.wickets / b.matches) : 0;
+            return wkpmB - wkpmA;
+        }).slice(0, 5);
+
+        let html = "<div class='best-list'><strong>Top Batsmen (by Runs)</strong>";
+        topBatsmen.forEach(p => {
+            const sr = p.balls > 0 ? ((p.runs / p.balls) * 100).toFixed(1) : "0.0";
+            html += `<div class="best-item"><div>${p.name} <small style="color:gray">(${p.team})</small></div><div>${p.runs} runs · SR ${sr}</div></div>`;
+        });
+        html += "</div>";
+
+        html += "<div class='best-list' style='margin-top:8px;'><strong>Top Bowlers (by Wickets)</strong>";
+        topBowlers.forEach(p => {
+            const overs = p.ballsBowled ? (p.ballsBowled / 6).toFixed(1) : "0.0";
+            const eco = p.ballsBowled ? (p.runsConceded / (p.ballsBowled/6)).toFixed(2) : "0.00";
+            html += `<div class="best-item"><div>${p.name} <small style="color:gray">(${p.team})</small></div><div>${p.wickets} wkts · Eco ${eco}</div></div>`;
+        });
+        html += "</div>";
+
+        container.innerHTML = html;
     }
 
     function switchTab(tab) {
@@ -452,29 +883,35 @@
         document.getElementById('tabPast').classList.toggle('active', tab === 'past');
         document.getElementById('liveSection').classList.toggle('hidden', tab !== 'live');
         document.getElementById('pastSection').classList.toggle('hidden', tab !== 'past');
-        if(tab === 'past') loadHistory();
+        if (tab === 'past') loadHistory();
     }
 
-    async function clearHistory() { 
-    if(confirm("Are you sure you want to permanently delete ALL match history from the cloud?")) {
+    async function clearHistory() {
+        if (!confirm("Are you sure you want to permanently delete ALL match history from the cloud?")) return;
         const list = document.getElementById('historyList');
         list.innerHTML = "<p style='text-align:center;'>Clearing match history...</p>";
-
         try {
-            // We call the script with a special parameter: ?action=clear
             const response = await fetch(`${SHEET_API_URL}?action=clear`);
             const result = await response.json();
-            
-            if(result.result === 'cleared') {
+            if (result.result === 'cleared') {
                 alert("History cleared successfully!");
-                loadHistory(); // Refresh the list
+                loadHistory();
+            } else {
+                alert("Clear attempted. Refreshing...");
+                loadHistory();
             }
         } catch (err) {
+            console.error(err);
             alert("Error clearing history. Make sure you re-deployed your Google Script.");
             loadHistory();
         }
     }
-}
+
+    document.getElementById('maxOversInput').addEventListener('change', e => {
+        const v = Number(e.target.value) || 5;
+        matchData.maxOvers = v;
+        document.getElementById('maxOversDisplay').innerText = v;
+    });
 </script>
 
 </body>
